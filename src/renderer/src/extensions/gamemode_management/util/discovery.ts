@@ -448,15 +448,26 @@ function walk(
 }
 
 function verifyToolDir(tool: ITool, testPath: string): Bluebird<void> {
-  return Bluebird.mapSeries(
-    tool.requiredFiles,
-    // our fs overload would try to acquire access to the directory if it's locked, which
-    // is not something we want at this point because we don't even know yet if the user
-    // wants to manage the game at all.
-    (fileName: string) =>
-      fsExtra.stat(path.join(testPath, fileName)).catch((err) => {
+  return getNormalizeFunc(testPath).then((normalize) => {
+      return Bluebird.mapSeries(
+        tool.requiredFiles,
+        // our fs overload would try to acquire access to the directory if it's locked, which
+        // is not something we want at this point because we don't even know yet if the user
+        // wants to manage the game at all.
+        (fileName: string) => {
+          const normalizedFileName = normalize(fileName);
+          return fsExtra.stat(path.join(testPath, normalizedFileName)).catch((err) => {
+            return Bluebird.reject(err);
+          });
+        }
+      ).then(() => undefined);
+    }
+  );
+      const normalizedFileName = normalize(fileName);
+      fsExtra.stat(path.join(testPath, normalizedFileName)).catch((err) => {
         return Bluebird.reject(err);
       }),
+    }
   ).then(() => undefined);
 }
 
